@@ -7,7 +7,7 @@ import { effectCmd } from "../effect-cmd"
 
 const QueryCommand = effectCmd({
   command: "$0 [query]",
-  describe: "open an interactive sqlite3 shell or run a query",
+  describe: "open an interactive psql shell or run a query",
   instance: false,
   builder: (yargs: Argv) => {
     return yargs
@@ -26,7 +26,7 @@ const QueryCommand = effectCmd({
     const query = args.query as string | undefined
     if (query) {
       const { db } = yield* Database.Service
-      const result = yield* db.all<Record<string, unknown>>(sql.raw(query)).pipe(Effect.orDie)
+      const result = yield* db.execute<Record<string, unknown>>(sql.raw(query)).pipe(Effect.orDie)
       if (args.format === "json") console.log(JSON.stringify(result, null, 2))
       else if (result.length > 0) {
         const keys = Object.keys(result[0])
@@ -35,19 +35,22 @@ const QueryCommand = effectCmd({
       }
       return
     }
-    const child = spawn("sqlite3", [Database.path()], {
+    // Pass an explicit connection string only when one is configured; otherwise let
+    // `psql` resolve the connection from standard PG* environment variables.
+    const url = Database.url()
+    const child = spawn("psql", url ? [url] : [], {
       stdio: "inherit",
     })
     yield* Effect.promise(() => new Promise((resolve) => child.on("close", resolve)))
   }),
 })
 
-const PathCommand = effectCmd({
-  command: "path",
-  describe: "print the database path",
+const ConnectionCommand = effectCmd({
+  command: "connection",
+  describe: "print the database connection",
   instance: false,
-  handler: Effect.fn("Cli.db.path")(function* () {
-    console.log(Database.path())
+  handler: Effect.fn("Cli.db.connection")(function* () {
+    console.log(Database.url() ?? "PG* environment variables")
   }),
 })
 
@@ -56,7 +59,7 @@ export const DbCommand = effectCmd({
   describe: "database tools",
   instance: false,
   builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).demandCommand()
+    return yargs.command(QueryCommand).command(ConnectionCommand).demandCommand()
   },
   handler: Effect.fn("Cli.db")(function* () {}),
 })

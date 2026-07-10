@@ -15,6 +15,7 @@ import { WorkspaceV2 } from "@opencode-ai/core/workspace"
 import { eq } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
+import { hasTestDatabase } from "./lib/database"
 
 const locationLayer = Layer.succeed(
   Location.Service,
@@ -83,7 +84,9 @@ const it = testEffect(
 )
 const itWithoutLocation = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node])))
 
-describe("EventV2", () => {
+const suite = hasTestDatabase ? describe : describe.skip
+
+suite("EventV2", () => {
   it.effect("publishes events with the current location", () =>
     Effect.gen(function* () {
       const events = yield* EventV2.Service
@@ -194,10 +197,10 @@ describe("EventV2", () => {
       const events = yield* EventV2.Service
       const { db } = yield* Database.Service
       const aggregateID = EventV2.ID.create()
-      yield* db.run("CREATE TABLE IF NOT EXISTS event_commit_probe (value text NOT NULL)")
-      yield* db.run("DELETE FROM event_commit_probe")
+      yield* db.execute("CREATE TABLE IF NOT EXISTS event_commit_probe (value text NOT NULL)")
+      yield* db.execute("DELETE FROM event_commit_probe")
       yield* events.project(SyncMessage, () =>
-        db.run("INSERT INTO event_commit_probe (value) VALUES ('projected')").pipe(Effect.orDie, Effect.asVoid),
+        db.execute("INSERT INTO event_commit_probe (value) VALUES ('projected')").pipe(Effect.orDie, Effect.asVoid),
       )
 
       const exit = yield* events
@@ -205,7 +208,7 @@ describe("EventV2", () => {
         .pipe(Effect.exit)
 
       expect(String(exit)).toContain("commit failed")
-      expect(yield* db.all("SELECT value FROM event_commit_probe")).toEqual([])
+      expect(yield* db.execute("SELECT value FROM event_commit_probe")).toEqual([])
       expect(yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, aggregateID)).all()).toEqual([])
       expect(
         yield* db.select().from(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, aggregateID)).all(),

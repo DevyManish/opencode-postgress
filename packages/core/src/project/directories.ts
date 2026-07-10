@@ -7,7 +7,7 @@ import { makeGlobalNode } from "../effect/app-node"
 import { AbsolutePath, optional } from "../schema"
 import { ProjectSchema } from "./schema"
 import { ProjectDirectoryTable } from "./sql"
-import type { EffectDrizzleSqlite } from "@opencode-ai/effect-drizzle-sqlite"
+import type { EffectDrizzlePg } from "@opencode-ai/effect-drizzle-pg"
 
 export interface Directory {
   readonly directory: AbsolutePath
@@ -28,7 +28,7 @@ export const RemoveInput = Schema.Struct({
 })
 export type RemoveInput = typeof RemoveInput.Type
 
-type DatabaseClient = EffectDrizzleSqlite.EffectSQLiteDatabase
+type DatabaseClient = EffectDrizzlePg.EffectPgDatabase
 export type Transaction = Parameters<Parameters<DatabaseClient["transaction"]>[0]>[0]
 
 export const ListInput = Schema.Struct({

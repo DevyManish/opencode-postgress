@@ -187,8 +187,7 @@ const layer = Layer.effect(
 
               if (oldProject) yield* d.delete(ProjectTable).where(eq(ProjectTable.id, oldID)).run()
             }),
-          { behavior: "immediate" },
-        )
+          )
         .pipe(Effect.orDie)
     })
 

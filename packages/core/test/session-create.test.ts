@@ -1,5 +1,4 @@
 import { describe, expect } from "bun:test"
-import path from "path"
 import { Effect, Layer, Stream } from "effect"
 import { AgentV2 } from "@opencode-ai/core/agent"
 import { asc, eq } from "drizzle-orm"
@@ -25,7 +24,7 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionStore } from "@opencode-ai/core/session/store"
 import { WorkspaceV2 } from "@opencode-ai/core/workspace"
 import { testEffect } from "./lib/effect"
-import { tmpdir } from "./fixture/tmpdir"
+import { hasTestDatabase, resetTestSchema } from "./lib/database"
 
 const projects = Layer.succeed(
   ProjectV2.Service,
@@ -47,7 +46,9 @@ const it = testEffect(
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 const id = SessionV2.ID.create()
 
-describe("SessionV2.create", () => {
+const suite = hasTestDatabase ? describe : describe.skip
+
+suite("SessionV2.create", () => {
   it.effect("creates a fresh projected session when the ID is omitted", () =>
     Effect.gen(function* () {
       const session = yield* SessionV2.Service
@@ -234,14 +235,12 @@ describe("SessionV2.create", () => {
         data: event.data,
       }))
 
-      const tmp = yield* Effect.acquireRelease(
-        Effect.promise(() => tmpdir()),
-        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-      )
-      const targetDatabase = Database.layerFromPath(path.join(tmp.path, "target.sqlite"))
+      const targetUrl = process.env["OPENCODE_TEST_TARGET_DATABASE_URL"]
+      if (!targetUrl) return
+      yield* Effect.promise(() => resetTestSchema(targetUrl))
       const targetLayer = AppNodeBuilder.build(
         LayerNode.group([Database.node, EventV2.node, SessionProjector.node, SessionStore.node]),
-        [[Database.node, targetDatabase]],
+        [[Database.node, Database.layerFromUrl(targetUrl)]],
       )
 
       yield* Effect.gen(function* () {

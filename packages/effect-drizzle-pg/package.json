@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "version": "1.17.17",
-  "name": "@opencode-ai/effect-sqlite-node",
+  "name": "@opencode-ai/effect-drizzle-pg",
   "type": "module",
   "license": "MIT",
   "private": true,
@@ -13,10 +13,12 @@
   },
   "devDependencies": {
     "@tsconfig/bun": "catalog:",
-    "@types/node": "catalog:",
+    "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:"
   },
   "dependencies": {
+    "@effect/sql-pg": "catalog:",
+    "drizzle-orm": "catalog:",
     "effect": "catalog:"
   }
 }

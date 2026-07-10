@@ -24,8 +24,8 @@ import { testEffect } from "../lib/effect"
 const truncate = Layer.effectDiscard(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    yield* db.run(sql`DELETE FROM account_state`)
-    yield* db.run(sql`DELETE FROM account`)
+    yield* db.execute(sql`DELETE FROM account_state`)
+    yield* db.execute(sql`DELETE FROM account`)
   }),
 )
 const truncateNode = LayerNode.make({ name: "truncate-account", layer: truncate, deps: [Database.node] })

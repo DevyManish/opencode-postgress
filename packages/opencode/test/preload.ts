@@ -26,7 +26,7 @@ afterAll(async () => {
     })
   }
 
-  // Windows can keep SQLite WAL handles alive until GC finalizers run, so we
+  // Windows can keep file handles alive until GC finalizers run, so we
   // force GC and retry teardown to avoid flaky EBUSY in test cleanup.
   await rm(30)
 })
@@ -83,8 +83,11 @@ delete process.env["OTEL_EXPORTER_OTLP_ENDPOINT"]
 delete process.env["OTEL_EXPORTER_OTLP_HEADERS"]
 delete process.env["OTEL_RESOURCE_ATTRIBUTES"]
 
-// Use in-memory sqlite
-process.env["OPENCODE_DB"] = ":memory:"
+// Point the process database at the configured test Postgres, if any. Database-backed
+// suites skip themselves when no URL is available.
+if (process.env["OPENCODE_TEST_DATABASE_URL"] && !process.env["OPENCODE_DATABASE_URL"]) {
+  process.env["OPENCODE_DATABASE_URL"] = process.env["OPENCODE_TEST_DATABASE_URL"]
+}
 
 // Now safe to import from src/
 const { initProjectors } = await import("../src/server/projectors")

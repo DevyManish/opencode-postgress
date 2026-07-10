@@ -348,7 +348,6 @@ export const layerWith = (options?: LayerOptions) =>
                             .pipe(Effect.orDie)
                           return { aggregateID, seq }
                         }),
-                      { behavior: "immediate" },
                     )
                     .pipe(Effect.orDie)
                   if (committed) {

@@ -230,12 +230,15 @@ const publish = Effect.fn("SessionInput.publish")(function* (
         delivery: row.delivery,
       })
       .pipe(
+        // A concurrent promotion of the same input loses the race inside the durable
+        // Prompted transaction: it rolls back before any event is committed and surfaces
+        // a defect (a LifecycleConflict, or a duplicate-key defect when the winning
+        // projection already inserted the session_message). In every case the input is
+        // now marked promoted, so republishing is a no-op; otherwise re-raise the defect.
         Effect.catchDefect((defect) =>
-          defect instanceof LifecycleConflict
-            ? find(db, id).pipe(
-                Effect.flatMap((stored) => (stored?.promotedSeq === undefined ? Effect.die(defect) : Effect.void)),
-              )
-            : Effect.die(defect),
+          find(db, id).pipe(
+            Effect.flatMap((stored) => (stored?.promotedSeq === undefined ? Effect.die(defect) : Effect.void)),
+          ),
         ),
       )
   }
