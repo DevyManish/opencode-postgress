@@ -7,43 +7,87 @@
     </picture>
   </a>
 </p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+<p align="center">The open source AI coding agent — <strong>Postgres edition</strong>.</p>
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
+---
+
+> [!IMPORTANT]
+> **This is a fork of [opencode](https://github.com/anomalyco/opencode).**
+> The upstream project stores all durable state in a local **SQLite** file. This
+> fork replaces that with an **external, config‑swappable Postgres server**, so
+> the same binary can point at a local container, a shared team database, or a
+> managed cloud Postgres — selected entirely through configuration.
+>
+> It is **not** built by or affiliated with the upstream opencode team.
+
+### What's different in this fork
+
+- 🐘 **Postgres instead of SQLite.** Durable state lives in an external Postgres
+  server (via `@effect/sql-pg` → node `pg` + Drizzle `pg-core`).
+- 🔀 **Config‑swappable connection.** One env var (`OPENCODE_DATABASE_URL`)
+  repoints the whole app; standard `PG*` variables and managed cloud URLs work
+  out of the box.
+- 🤝 **Shareable & concurrent.** State is no longer trapped in one machine's file
+  — multiple processes / a team can share one server, with real connection
+  pooling and concurrency.
+- 🧱 **Automatic migrations.** The schema is created/updated on startup: an empty
+  database gets the squashed baseline; an existing one gets missing incrementals.
+- 🧩 **Dialect‑agnostic call sites.** Application code still uses the Drizzle query
+  builder, so the engine sits behind a single `Database.Service` and a thin
+  adapter package.
+
+Everything else — the agent, TUI, tools, and workflows — behaves like upstream
+opencode.
+
+### Fork documentation
+
+| Doc | What it covers |
+| --- | --- |
+| 📐 [`docs/postgres-migration.md`](./docs/postgres-migration.md) | What/where/how the SQLite→Postgres change was done, the resulting architecture, and its benefits (with diagrams). |
+| 🛠️ [`docs/database-setup.md`](./docs/database-setup.md) | Prerequisites, environment variables, starting Postgres, running the dev server, building, and day‑to‑day database commands. |
+
+For the original design plan, see
+[`packages/core/src/database/POSTGRES_MIGRATION.md`](./packages/core/src/database/POSTGRES_MIGRATION.md).
+
+### Quick start (Postgres)
+
+```bash
+# 1. Start a local Postgres (Docker)
+docker run -d --name opencode-pg \
+  -e POSTGRES_USER=testuser -e POSTGRES_PASSWORD=test123 -e POSTGRES_DB=opencode \
+  -p 5433:5432 postgres:16-alpine
+
+# 2. Point opencode at it
+export OPENCODE_DATABASE_URL="postgres://testuser:test123@localhost:5433/opencode"
+
+# 3. Install deps and run (migrations apply automatically on startup)
+bun install
+bun run dev
+```
+
+> **Connection resolution order:** `OPENCODE_DATABASE_URL` → `OPENCODE_DB` (only
+> if it's a `postgres://` URL) → standard `PG*` env vars → local default
+> (`postgres://postgres@127.0.0.1:5432/opencode`).
+> Full details in [`docs/database-setup.md`](./docs/database-setup.md).
+
+### Database commands
+
+```bash
+opencode db                                   # interactive psql shell
+opencode db "select id, name from project"    # run a query (add --format json)
+opencode db connection                        # print the resolved connection
+```
+
+---
 
 [![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
 
 ---
 
-### Installation
+### Installation (upstream opencode)
+
+> The packages below install **upstream** opencode (SQLite). This fork runs from
+> source against Postgres — see **Quick start** above.
 
 ```bash
 # YOLO
@@ -114,11 +158,28 @@ Learn more about [agents](https://opencode.ai/docs/agents).
 
 ### Documentation
 
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
+**This fork:** [`docs/database-setup.md`](./docs/database-setup.md) (setup, env
+vars, dev server, build) and [`docs/postgres-migration.md`](./docs/postgres-migration.md)
+(architecture & changes).
+
+For general opencode configuration, [**head over to the upstream docs**](https://opencode.ai/docs).
+
+### Building & running this fork
+
+```bash
+bun install                 # install workspace deps (repo root)
+bun run dev                 # run the opencode CLI/server against Postgres
+bun run typecheck           # typecheck the workspace
+cd packages/opencode && bun run build   # build the CLI
+```
+
+See [`docs/database-setup.md`](./docs/database-setup.md) for prerequisites and the
+full set of commands.
 
 ### Contributing
 
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+If you're interested in contributing to upstream OpenCode, please read the
+[contributing docs](./CONTRIBUTING.md) before submitting a pull request.
 
 ### Building on OpenCode
 
